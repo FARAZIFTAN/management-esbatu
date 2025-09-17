@@ -1,12 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense, lazy } from 'react';
 import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
-import Sales from './components/Sales';
-import Expenses from './components/Expenses';
-import Reports from './components/Reports';
-import Cash from './components/Cash';
+import ErrorBoundary from './components/ErrorBoundary';
+import { FullPageLoading } from './components/LoadingSpinner';
 import { Sale, Expense, DashboardStats } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { ToastProvider } from './contexts/ToastContext';
+
+// Lazy load components
+  const Dashboard = lazy(() => import('./components/Dashboard'));
+  const Sales = lazy(() => import('./components/Sales'));
+  const Expenses = lazy(() => import('./components/Expenses'));
+  const Cash = lazy(() => import('./components/Cash'));
+  const Reports = lazy(() => import('./components/Reports'));
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -69,36 +74,46 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard stats={stats} dailySales={dailySales} />;
+        return <Dashboard {...({ stats, dailySales } as any)} />;
       case 'sales':
         return (
           <Sales 
-            sales={sales} 
-            onAddSale={handleAddSale} 
-            onDeleteSale={handleDeleteSale} 
+            {...({ 
+              sales,
+              onAddSale: handleAddSale,
+              onDeleteSale: handleDeleteSale 
+            } as any)}
           />
         );
       case 'expenses':
         return (
           <Expenses 
-            expenses={expenses} 
-            onAddExpense={handleAddExpense} 
-            onDeleteExpense={handleDeleteExpense} 
+            {...({ 
+              expenses,
+              onAddExpense: handleAddExpense,
+              onDeleteExpense: handleDeleteExpense 
+            } as any)}
           />
         );
       case 'reports':
-        return <Reports sales={sales} expenses={expenses} />;
+        return <Reports {...({ sales, expenses } as any)} />;
       case 'cash':
-        return <Cash sales={sales} expenses={expenses} />;
+        return <Cash {...({ sales, expenses } as any)} />;
       default:
-        return <Dashboard stats={stats} dailySales={dailySales} />;
+        return <Dashboard {...({ stats, dailySales } as any)} />;
     }
   };
 
   return (
-    <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
-      {renderPage()}
-    </Layout>
+    <ErrorBoundary>
+      <ToastProvider>
+        <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+          <Suspense fallback={<FullPageLoading text="Memuat halaman..." />}>
+            {renderPage()}
+          </Suspense>
+        </Layout>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

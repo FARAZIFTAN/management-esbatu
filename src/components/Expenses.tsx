@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { CreditCard, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { ShoppingBag, Plus, Trash2, DollarSign, Calendar, Tag, TrendingUp, CreditCard, Loader2 } from 'lucide-react';
 import { Expense } from '../types';
 import { formatCurrency } from '../utils/pricing';
+import { useToast } from '../hooks/useToast';
+import ConfirmDialog from './ConfirmDialog';
 
 interface ExpensesProps {
   expenses: Expense[];
@@ -9,22 +11,81 @@ interface ExpensesProps {
   onDeleteExpense: (id: string) => void;
 }
 
-const Expenses: React.FC<ExpensesProps> = ({ expenses, onAddExpense, onDeleteExpense }) => {
+const Expenses = ({ expenses, onAddExpense, onDeleteExpense }: ExpensesProps) => {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  
+  const { showSuccess, showError } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!name.trim()) {
+      errors.name = 'Nama pengeluaran harus diisi';
+    } else if (name.trim().length < 3) {
+      errors.name = 'Nama pengeluaran minimal 3 karakter';
+    }
+    
+    if (!amount || amount <= 0) {
+      errors.amount = 'Nominal harus lebih dari 0';
+    } else if (amount > 100000000) {
+      errors.amount = 'Nominal maksimal Rp 100.000.000';
+    }
+    
+    if (!date) {
+      errors.date = 'Tanggal harus diisi';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim() && amount && amount > 0) {
+    
+    if (!validateForm()) {
+      showError('Mohon perbaiki kesalahan pada form');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      // Simulate processing time for better UX
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       onAddExpense({
         name: name.trim(),
         amount: Number(amount),
         date,
       });
+      
       setName('');
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
+      setFormErrors({});
+      showSuccess(`Pengeluaran "${name.trim()}" berhasil ditambahkan!`);
+    } catch (error) {
+      showError('Gagal menambahkan pengeluaran. Silakan coba lagi.');
+      console.error('Error adding expense:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    setDeleteConfirm(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      onDeleteExpense(deleteConfirm);
+      showSuccess('Pengeluaran berhasil dihapus!');
+      setDeleteConfirm(null);
     }
   };
 
@@ -54,9 +115,14 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, onAddExpense, onDeleteExp
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-colors ${
+                  formErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-red-500'
+                }`}
                 placeholder="Contoh: Listrik, Air, Bahan bakar"
               />
+              {formErrors.name && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+              )}
             </div>
             
             <div>
@@ -68,9 +134,14 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, onAddExpense, onDeleteExp
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-colors ${
+                  formErrors.amount ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-red-500'
+                }`}
                 placeholder="Masukkan jumlah pengeluaran"
               />
+              {formErrors.amount && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.amount}</p>
+              )}
             </div>
           </div>
 
@@ -82,17 +153,31 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, onAddExpense, onDeleteExp
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 transition-colors ${
+                formErrors.date ? 'border-red-500 bg-red-50' : 'border-gray-300 focus:border-red-500'
+              }`}
             />
+            {formErrors.date && (
+              <p className="mt-1 text-sm text-red-600">{formErrors.date}</p>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={!name.trim() || !amount || Number(amount) <= 0}
-            className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center space-x-2"
+            disabled={isSubmitting}
+            className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="h-4 w-4" />
-            <span>Simpan Pengeluaran</span>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Menyimpan...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" />
+                <span>Tambah Pengeluaran</span>
+              </>
+            )}
           </button>
         </form>
       </div>
@@ -142,7 +227,7 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, onAddExpense, onDeleteExp
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <button
-                        onClick={() => onDeleteExpense(expense.id)}
+                        onClick={() => handleDelete(expense.id)}
                         className="text-red-600 hover:text-red-800 transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -161,6 +246,18 @@ const Expenses: React.FC<ExpensesProps> = ({ expenses, onAddExpense, onDeleteExp
           </table>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+        title="Hapus Pengeluaran"
+        message="Apakah Anda yakin ingin menghapus data pengeluaran ini? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Hapus"
+        cancelText="Batal"
+        type="danger"
+      />
     </div>
   );
 };

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   LineChart,
   Line,
@@ -34,6 +33,7 @@ interface PieChartData {
   name: string;
   value: number;
   color: string;
+  [key: string]: unknown; // Add index signature for recharts compatibility
 }
 
 interface SummaryPieChartProps {
@@ -41,12 +41,22 @@ interface SummaryPieChartProps {
 }
 
 // Custom Tooltip Component
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    name: string;
+    value: number;
+    color: string;
+  }>;
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
         <p className="font-semibold text-gray-800 mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index: number) => (
           <p key={index} className="text-sm" style={{ color: entry.color }}>
             {entry.name}: Rp {entry.value.toLocaleString('id-ID')}
           </p>
@@ -197,9 +207,15 @@ export const SalesChart: React.FC<SalesChartProps> = ({ data, type = 'line' }) =
 export const SummaryPieChart: React.FC<SummaryPieChartProps> = ({ data }) => {
   const RADIAN = Math.PI / 180;
   
-  const renderCustomizedLabel = ({
-    cx, cy, midAngle, innerRadius, outerRadius, percent
-  }: any) => {
+  const renderCustomizedLabel = (props: unknown) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props as {
+      cx: number;
+      cy: number;
+      midAngle: number;
+      innerRadius: number;
+      outerRadius: number;
+      percent: number;
+    };
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -343,3 +359,13 @@ export const ChartTypeSelector: React.FC<ChartTypeSelectorProps> = ({
     </div>
   );
 };
+
+// Default export for lazy loading
+const Chart = {
+  SalesChart,
+  SummaryPieChart,
+  MiniChart,
+  ChartTypeSelector
+};
+
+export default Chart;

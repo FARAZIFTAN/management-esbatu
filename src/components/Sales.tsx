@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ShoppingCart, Plus, Trash2, Calculator, Package, Zap, TrendingUp } from 'lucide-react';
 import { Sale } from '../types';
 import { calculatePrice, formatCurrency } from '../utils/pricing';
+import { useToast } from '../hooks/useToast';
+import ConfirmDialog from './ConfirmDialog';
 
 interface SalesProps {
   sales: Sale[];
@@ -9,14 +11,37 @@ interface SalesProps {
   onDeleteSale: (id: string) => void;
 }
 
-const Sales: React.FC<SalesProps> = ({ sales, onAddSale, onDeleteSale }) => {
+const Sales = ({ sales, onAddSale, onDeleteSale }: SalesProps) => {
   const [quantity, setQuantity] = useState<number>(1);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<string>('');
+  
+  const { showSuccess, showError } = useToast();
   const price = calculatePrice(quantity);
+
+  const validateForm = () => {
+    if (!quantity || quantity <= 0) {
+      setFormErrors('Jumlah es batu harus lebih dari 0');
+      return false;
+    }
+    if (quantity > 1000) {
+      setFormErrors('Jumlah es batu maksimal 1000');
+      return false;
+    }
+    setFormErrors('');
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (quantity > 0) {
+    
+    if (!validateForm()) {
+      showError(formErrors);
+      return;
+    }
+
+    try {
       setIsCalculating(true);
       
       // Simulate processing time for better UX
@@ -29,8 +54,26 @@ const Sales: React.FC<SalesProps> = ({ sales, onAddSale, onDeleteSale }) => {
         date: now.toISOString().split('T')[0],
         time: now.toTimeString().split(' ')[0].slice(0, 5),
       });
+      
       setQuantity(1);
+      showSuccess(`Penjualan ${quantity} es batu berhasil ditambahkan!`);
+    } catch (error) {
+      showError('Gagal menambahkan penjualan. Silakan coba lagi.');
+      console.error('Error adding sale:', error);
+    } finally {
       setIsCalculating(false);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    setDeleteConfirm(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      onDeleteSale(deleteConfirm);
+      showSuccess('Penjualan berhasil dihapus!');
+      setDeleteConfirm(null);
     }
   };
 
@@ -149,6 +192,11 @@ const Sales: React.FC<SalesProps> = ({ sales, onAddSale, onDeleteSale }) => {
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   Jumlah Es Batu yang Dibeli
                 </label>
+                {formErrors && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600">{formErrors}</p>
+                  </div>
+                )}
                 <div className="relative">
                   <input
                     type="number"
@@ -285,7 +333,7 @@ const Sales: React.FC<SalesProps> = ({ sales, onAddSale, onDeleteSale }) => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {sales.length > 0 ? (
-                sales.map((sale, index) => (
+                sales.map((sale) => (
                   <tr key={sale.id} className="hover:bg-blue-50 transition-colors duration-200 group">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 font-medium">
@@ -316,7 +364,7 @@ const Sales: React.FC<SalesProps> = ({ sales, onAddSale, onDeleteSale }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <button
-                        onClick={() => onDeleteSale(sale.id)}
+                        onClick={() => handleDelete(sale.id)}
                         className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all duration-200 group-hover:scale-110"
                         title="Hapus transaksi"
                       >
@@ -399,6 +447,18 @@ const Sales: React.FC<SalesProps> = ({ sales, onAddSale, onDeleteSale }) => {
           </p>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm !== null}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+        title="Hapus Penjualan"
+        message="Apakah Anda yakin ingin menghapus data penjualan ini? Tindakan ini tidak dapat dibatalkan."
+        confirmText="Hapus"
+        cancelText="Batal"
+        type="danger"
+      />
     </div>
   );
 };

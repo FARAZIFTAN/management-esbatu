@@ -1,18 +1,24 @@
-import React, { useState, useMemo } from 'react';
-import { FileText, Download, Calendar } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { BarChart3, FileSpreadsheet, Download, Calendar, TrendingUp, DollarSign, Loader2, FileText } from 'lucide-react';
 import { Sale, Expense } from '../types';
+import { SalesChart, SummaryPieChart, MiniChart, ChartTypeSelector } from './Chart';
 import { formatCurrency } from '../utils/pricing';
+import { useToast } from '../hooks/useToast';
+import { exportToExcel, exportToPDF, ExportData } from '../utils/export';
 
 interface ReportsProps {
   sales: Sale[];
   expenses: Expense[];
 }
 
-const Reports: React.FC<ReportsProps> = ({ sales, expenses }) => {
+const Reports = ({ sales, expenses }: ReportsProps) => {
   const [filterType, setFilterType] = useState<'day' | 'month' | 'year'>('month');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const { showSuccess, showError, showLoading, dismiss } = useToast();
 
   const filteredData = useMemo(() => {
     let filteredSales: Sale[] = [];
@@ -40,23 +46,46 @@ const Reports: React.FC<ReportsProps> = ({ sales, expenses }) => {
     return { filteredSales, filteredExpenses, totalIncome, totalExpenses, profit };
   }, [sales, expenses, filterType, selectedDate, selectedMonth, selectedYear]);
 
-  const handleExport = (format: 'excel' | 'pdf') => {
-    // Simulated export functionality
-    const data = {
-      period: filterType === 'day' ? selectedDate : filterType === 'month' ? selectedMonth : selectedYear,
-      type: filterType,
-      summary: {
-        totalIncome: filteredData.totalIncome,
-        totalExpenses: filteredData.totalExpenses,
-        profit: filteredData.profit,
-      },
-      sales: filteredData.filteredSales,
-      expenses: filteredData.filteredExpenses,
-    };
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    if (isExporting) return;
+    
+    setIsExporting(true);
+    const loadingToast = showLoading(`Mengexport laporan ${format.toUpperCase()}...`);
 
-    // In a real app, this would trigger actual file download
-    console.log(`Exporting ${format} report:`, data);
-    alert(`Laporan ${format.toUpperCase()} berhasil di-download! (Simulasi)`);
+    try {
+      const exportData: ExportData = {
+        period: filterType === 'day' ? selectedDate : filterType === 'month' ? selectedMonth : selectedYear,
+        type: filterType,
+        summary: {
+          totalIncome: filteredData.totalIncome,
+          totalExpenses: filteredData.totalExpenses,
+          profit: filteredData.profit,
+        },
+        sales: filteredData.filteredSales,
+        expenses: filteredData.filteredExpenses,
+      };
+
+      let result;
+      if (format === 'excel') {
+        result = exportToExcel(exportData);
+      } else {
+        result = await exportToPDF(exportData);
+      }
+
+      dismiss(loadingToast);
+
+      if (result.success) {
+        showSuccess(`Laporan ${format.toUpperCase()} berhasil di-download: ${result.fileName}`);
+      } else {
+        showError(result.error || 'Gagal mengexport laporan');
+      }
+    } catch (error) {
+      dismiss(loadingToast);
+      showError('Terjadi kesalahan saat mengexport laporan');
+      console.error('Export error:', error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const getPeriodLabel = () => {
@@ -156,16 +185,18 @@ const Reports: React.FC<ReportsProps> = ({ sales, expenses }) => {
           <div className="flex items-end space-x-2">
             <button
               onClick={() => handleExport('excel')}
-              className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-1"
+              disabled={isExporting}
+              className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Download className="h-4 w-4" />
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               <span className="text-xs">Excel</span>
             </button>
             <button
               onClick={() => handleExport('pdf')}
-              className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-1"
+              disabled={isExporting}
+              className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Download className="h-4 w-4" />
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               <span className="text-xs">PDF</span>
             </button>
           </div>
@@ -208,7 +239,7 @@ const Reports: React.FC<ReportsProps> = ({ sales, expenses }) => {
       </div>
 
       {/* Detailed Report */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200" id="report-content">
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Laporan Detail</h2>
