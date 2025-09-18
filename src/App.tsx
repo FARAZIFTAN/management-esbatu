@@ -20,8 +20,8 @@ function App() {
 
   // Calculate dashboard stats
   const stats: DashboardStats = useMemo(() => {
-    const totalIncome = sales.reduce((sum, sale) => sum + sale.totalPrice, 0);
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const totalIncome = sales.reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
+    const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
     const balance = totalIncome - totalExpenses;
     const profit = balance; // In this simple case, profit equals balance
     
@@ -38,8 +38,8 @@ function App() {
 
     return last7Days.map(date => {
       const dayTotal = sales
-        .filter(sale => sale.date === date)
-        .reduce((sum, sale) => sum + sale.totalPrice, 0);
+        .filter(sale => sale.date && sale.date === date)
+        .reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
       
       return { date, amount: dayTotal };
     });

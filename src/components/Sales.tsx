@@ -135,9 +135,9 @@ const Sales = ({ sales, onAddSale, onDeleteSale }: SalesProps) => {
     return breakdown;
   };
 
-  const todaySales = sales.filter(sale => sale.date === new Date().toISOString().split('T')[0]);
-  const todayTotal = todaySales.reduce((sum, sale) => sum + sale.totalPrice, 0);
-  const todayQuantity = todaySales.reduce((sum, sale) => sum + sale.quantity, 0);
+  const todaySales = sales.filter(sale => sale.date && sale.date === new Date().toISOString().split('T')[0]);
+  const todayTotal = todaySales.reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
+  const todayQuantity = todaySales.reduce((sum, sale) => sum + (sale.quantity || 0), 0);
 
   return (
     <div className="space-y-8">

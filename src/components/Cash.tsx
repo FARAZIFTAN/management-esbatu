@@ -9,8 +9,8 @@ interface CashProps {
 }
 
 const Cash: React.FC<CashProps> = ({ sales, expenses }) => {
-  const totalIncome = sales.reduce((sum, sale) => sum + sale.totalPrice, 0);
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalIncome = sales.reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
+  const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
   const currentBalance = totalIncome - totalExpenses;
 
   // Create combined transaction history
@@ -18,17 +18,17 @@ const Cash: React.FC<CashProps> = ({ sales, expenses }) => {
     ...sales.map(sale => ({
       id: `sale-${sale.id}`,
       type: 'sale' as const,
-      description: `Penjualan ${sale.quantity} es batu`,
-      amount: sale.totalPrice,
-      date: sale.date,
-      time: sale.time,
+      description: `Penjualan ${sale.quantity || 0} es batu`,
+      amount: sale.totalPrice || 0,
+      date: sale.date || '',
+      time: sale.time || '',
     })),
     ...expenses.map(expense => ({
       id: `expense-${expense.id}`,
       type: 'expense' as const,
-      description: expense.name,
-      amount: -expense.amount,
-      date: expense.date,
+      description: expense.name || 'Pengeluaran',
+      amount: -(expense.amount || 0),
+      date: expense.date || '',
       time: '00:00',
     })),
   ].sort((a, b) => {

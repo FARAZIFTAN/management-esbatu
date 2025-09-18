@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { BarChart3, FileSpreadsheet, Download, Calendar, TrendingUp, DollarSign, Loader2, FileText } from 'lucide-react';
 import { Sale, Expense } from '../types';
-import { SalesChart, SummaryPieChart, MiniChart, ChartTypeSelector } from './Chart';
 import { formatCurrency } from '../utils/pricing';
 import { useToast } from '../hooks/useToast';
 import { exportToExcel, exportToPDF, ExportData } from '../utils/export';
@@ -26,21 +25,21 @@ const Reports = ({ sales, expenses }: ReportsProps) => {
 
     switch (filterType) {
       case 'day':
-        filteredSales = sales.filter(sale => sale.date === selectedDate);
-        filteredExpenses = expenses.filter(expense => expense.date === selectedDate);
+        filteredSales = sales.filter(sale => sale.date && sale.date === selectedDate);
+        filteredExpenses = expenses.filter(expense => expense.date && expense.date === selectedDate);
         break;
       case 'month':
-        filteredSales = sales.filter(sale => sale.date.startsWith(selectedMonth));
-        filteredExpenses = expenses.filter(expense => expense.date.startsWith(selectedMonth));
+        filteredSales = sales.filter(sale => sale.date && sale.date.startsWith(selectedMonth));
+        filteredExpenses = expenses.filter(expense => expense.date && expense.date.startsWith(selectedMonth));
         break;
       case 'year':
-        filteredSales = sales.filter(sale => sale.date.startsWith(selectedYear));
-        filteredExpenses = expenses.filter(expense => expense.date.startsWith(selectedYear));
+        filteredSales = sales.filter(sale => sale.date && sale.date.startsWith(selectedYear));
+        filteredExpenses = expenses.filter(expense => expense.date && expense.date.startsWith(selectedYear));
         break;
     }
 
-    const totalIncome = filteredSales.reduce((sum, sale) => sum + sale.totalPrice, 0);
-    const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const totalIncome = filteredSales.reduce((sum, sale) => sum + (sale.totalPrice || 0), 0);
+    const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
     const profit = totalIncome - totalExpenses;
 
     return { filteredSales, filteredExpenses, totalIncome, totalExpenses, profit };
@@ -266,9 +265,9 @@ const Reports = ({ sales, expenses }: ReportsProps) => {
                     {filteredData.filteredSales.length > 0 ? (
                       filteredData.filteredSales.map((sale) => (
                         <tr key={sale.id}>
-                          <td className="px-3 py-2">{new Date(sale.date).toLocaleDateString('id-ID')}</td>
-                          <td className="px-3 py-2">{sale.quantity}</td>
-                          <td className="px-3 py-2 font-medium">{formatCurrency(sale.totalPrice)}</td>
+                          <td className="px-3 py-2">{sale.date ? new Date(sale.date).toLocaleDateString('id-ID') : '-'}</td>
+                          <td className="px-3 py-2">{sale.quantity || 0}</td>
+                          <td className="px-3 py-2 font-medium">{formatCurrency(sale.totalPrice || 0)}</td>
                         </tr>
                       ))
                     ) : (
@@ -299,9 +298,9 @@ const Reports = ({ sales, expenses }: ReportsProps) => {
                     {filteredData.filteredExpenses.length > 0 ? (
                       filteredData.filteredExpenses.map((expense) => (
                         <tr key={expense.id}>
-                          <td className="px-3 py-2">{new Date(expense.date).toLocaleDateString('id-ID')}</td>
-                          <td className="px-3 py-2">{expense.name}</td>
-                          <td className="px-3 py-2 font-medium">{formatCurrency(expense.amount)}</td>
+                          <td className="px-3 py-2">{expense.date ? new Date(expense.date).toLocaleDateString('id-ID') : '-'}</td>
+                          <td className="px-3 py-2">{expense.name || 'Pengeluaran'}</td>
+                          <td className="px-3 py-2 font-medium">{formatCurrency(expense.amount || 0)}</td>
                         </tr>
                       ))
                     ) : (
